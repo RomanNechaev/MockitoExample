@@ -6,6 +6,7 @@ import product.Product;
 import product.ProductDao;
 import shopping.BuyException;
 import shopping.Cart;
+import shopping.ShoppingService;
 import shopping.ShoppingServiceImpl;
 
 import static org.mockito.Mockito.*;
@@ -15,35 +16,28 @@ import java.util.Map;
 
 class ShoppingServiceTest {
     private final ProductDao productDAO = Mockito.mock(ProductDao.class);
-
-    private final ShoppingServiceImpl shoppingService = new ShoppingServiceImpl(productDAO);
-
+    private final ShoppingService shoppingService = new ShoppingServiceImpl(productDAO);
 
     /**
-     * Тестирование возможности покупки товаров, если корзина пуста
+     * Тестирование невозможности покупки товаров, если корзина пуста
      */
-
     @Test
-    void testCanBuyProductsIfCartIsEmpty() {
+    void testCanBuyProductsIfCartIsEmpty() throws BuyException {
         Cart cart = Mockito.mock(Cart.class);
 
         when(cart.getProducts()).thenReturn(new HashMap<>());
 
-        try {
-            Assertions.assertFalse(shoppingService.buy(cart));
-        } catch (BuyException e) {
-            throw new RuntimeException(e);
-        }
+
+        Assertions.assertFalse(shoppingService.buy(cart));
 
         verify(productDAO, never()).save(any());
-
     }
 
     /**
      * Тестирование возможности покупки товара, если корзина не пуста и все товары в корзине есть в наличии в нужном количестве.
      */
     @Test
-    void testCanBuyProductsIfCartIsNotEmpty() {
+    void testCanBuyProductsIfCartIsNotEmpty() throws BuyException {
         Customer customer = new Customer(0, "8-800-555-35-35");
         Cart cart = new Cart(customer);
         Product firstTestProduct = new Product();
@@ -53,16 +47,11 @@ class ShoppingServiceTest {
         cart.add(firstTestProduct, 2);
         cart.add(secondTestProduct, 2);
 
-        boolean isSuccessfully;
-        try {
-            isSuccessfully = shoppingService.buy(cart);
-        } catch (BuyException e) {
-            throw new RuntimeException(e);
-        }
 
-        Assertions.assertTrue(isSuccessfully);
+        Assertions.assertTrue(shoppingService.buy(cart));
+        Assertions.assertEquals(3, firstTestProduct.getCount());
+        Assertions.assertEquals(3, secondTestProduct.getCount());
         verify(productDAO, times(2)).save(any(Product.class));
-
     }
 
     /**
@@ -82,34 +71,14 @@ class ShoppingServiceTest {
     }
 
     /**
-     * Тестирование логики покупки товара -> кол-во товара на складе должно уменьшиться
-     */
-    @Test
-    void testAmountOfProductShouldDecreaseWhenBuy() {
-        Customer customer = new Customer(0, "8-800-555-35-35");
-        Cart cart = new Cart(customer);
-        Product testProduct = new Product();
-        testProduct.addCount(5);
-        cart.add(testProduct, 2);
-
-        try {
-            shoppingService.buy(cart);
-        } catch (BuyException e) {
-            throw new RuntimeException(e);
-        }
-
-        Assertions.assertEquals(3, testProduct.getCount());
-    }
-
-
-    /**
      * Тестирование получения продукта по имени
      */
     @Test
     void testCanGetProductByName() {
-        shoppingService.getProductByName(anyString());
+        String productName = "test";
+        shoppingService.getProductByName(productName);
 
-        verify(productDAO).getByName(anyString());
+        verify(productDAO).getByName(productName);
     }
 
     /**
@@ -120,5 +89,20 @@ class ShoppingServiceTest {
         shoppingService.getAllProducts();
 
         verify(productDAO).getAll();
+    }
+
+    /**
+     * Тестирование получения корзины покупателя
+     */
+    @Test
+    void testCanGetCart() {
+        Customer customer = new Customer(0, "8-800-555-35-35");
+        Cart cart = new Cart(customer);
+
+        Cart cart1 = shoppingService.getCart(customer);
+
+        Assertions.assertNotNull(cart1);
+
+
     }
 }
